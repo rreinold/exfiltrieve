@@ -32,7 +32,7 @@ dataclasses
 curl and run on debian bookworm
 no external deps, unfortunately, unless can be bundled
 """
-
+from dataclasses import dataclass
 # conditional import for older versions of python not compatible with subprocess
 try:
     import subprocess as sub
@@ -43,6 +43,14 @@ except ImportError:
 
     compatmode = 1
 
+@dataclass
+class CmdRequest:
+    cmd: str
+    msg:str # change to desc
+
+@dataclass
+class CmdResults(CmdRequest):
+    results:list[str]
 
 def execute_cmd(cmddict):
     """
@@ -56,7 +64,8 @@ def execute_cmd(cmddict):
     for item in cmddict:
         cmd = cmddict[item]["cmd"]
         if compatmode == 0:  # newer version of python, use preferred subprocess
-            out, error = sub.Popen([cmd], stdout=sub.PIPE, stderr=sub.PIPE, shell=True).communicate()
+            process = sub.Popen([cmd], stdout=sub.PIPE, stderr=sub.PIPE, shell=True)
+            out, error = process.communicate()
             results = out.decode().split('\n')
         else:  # older version of python, use os.popen
             echo_stdout = os.popen(cmd, 'r')
@@ -823,4 +832,4 @@ def run_check():
     print("Finished")
     print(bigline)
 
-run_check()
+# run_check()
