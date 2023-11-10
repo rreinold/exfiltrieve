@@ -66,6 +66,7 @@ def execute_cmd(cmddict):
         if compatmode == 0:  # newer version of python, use preferred subprocess
             process = sub.Popen([cmd], stdout=sub.PIPE, stderr=sub.PIPE, shell=True)
             out, error = process.communicate()
+            # TODO Tolerant to errors?
             results = out.decode().split('\n')
         else:  # older version of python, use os.popen
             echo_stdout = os.popen(cmd, 'r')
