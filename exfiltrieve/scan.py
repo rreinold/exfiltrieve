@@ -162,14 +162,17 @@ def enum_network_info():
 
     print("[*] GETTING NETWORKING INFO...\n")
 
-    netinfo = {
-        "netinfo": {"cmd": "/sbin/ifconfig -a", "msg": "Interfaces", "results": []},
-        "ROUTE": {"cmd": "route", "msg": "Route(s)", "results": []},
-        "NETSTAT": {"cmd": "netstat -antup | grep -v 'TIME_WAIT'", "msg": "Netstat", "results": []}
-    }
+    netinfo = [
+        CmdRequest(id="netinfo", cmd="/sbin/ifconfig -a", desc="Interfaces"),
+        CmdRequest(id="ROUTE", cmd="route", desc="Route(s)"),
+        CmdRequest(id="NETSTAT", cmd="netstat -antup | grep -v 'TIME_WAIT'", desc="Netstat")
+    ]
 
-    netinfo = execute_cmd(netinfo)
-    print_results(netinfo)
+    step = Step(desc="[*] GETTING NETWORKING INFO...\n",cmds=netinfo, results=None)
+
+    step.results = execute(step)
+    report(step.results)
+    return step
 
 
 def enum_filesystem_info():
@@ -829,7 +832,7 @@ def run_check():
     userinfo = enum_user_info()
 
     # Enumerate Basic System Information
-    sysinfo_new = enum_system_info()
+    sysinfo = enum_system_info()
 
     # Enumerate Basic Network Information
     enum_network_info()
@@ -847,7 +850,7 @@ def run_check():
     enum_cron_jobs()
 
     # Enumerate Package and Process information
-    pkgsandprocs = enum_procs_pkgs(sysinfo_new)
+    pkgsandprocs = enum_procs_pkgs(sysinfo)
 
     # Enumerate Possible Root/superuser packages or processes
     enum_root_pkg_proc(pkgsandprocs, userinfo)
@@ -858,7 +861,7 @@ def run_check():
     # Enumerate Possible Shell Escapes
     enum_shell_esapes(devtools)
 
-    find_likely_exploits(sysinfo_new, devtools, pkgsandprocs, driveinfo)
+    find_likely_exploits(sysinfo, devtools, pkgsandprocs, driveinfo)
 
     if PROCESS_SEARCHES:
         # Search for Insecure File/Folder Permissions
