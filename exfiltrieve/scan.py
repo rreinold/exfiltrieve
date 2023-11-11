@@ -46,14 +46,21 @@ except ImportError:
 # Re enable after integration tests
 CHECK_MOUNTS = False
 PROCESS_SEARCHES=True
+
 @dataclass
 class CmdRequest:
     cmd: str
-    msg:str # change to desc
+    name:str # change to desc
 
 @dataclass
-class CmdResults(CmdRequest):
+class CmdResponse(CmdRequest):
     results:list[str]
+
+@dataclass
+class Step:
+    desc: str
+    cmds: list[CmdRequest]
+
 
 def execute_cmd(cmddict):
     """
@@ -76,6 +83,29 @@ def execute_cmd(cmddict):
 
     return cmddict
 
+def execute(step:Step)->list[CmdResponse]:
+    """
+    Execute Command (execute_cmd)
+    loop through dictionary, execute the commands, store the results, return updated dict
+
+    :param cmddict: Dictionary of commands to execute and results
+    :return: The command Dictionary with the commands results included
+    """
+    STDERR = STDOUT =sub.PIPE
+    SPLITTER = '\n'
+
+    responses = []
+    for cmd_request in step.cmds:
+        cmd:str = cmd_request.cmd
+        process = sub.Popen([cmd], stdout=STDOUT, stderr=STDERR, shell=True)
+        out, _ = process.communicate()
+        # TODO Tolerant to errors?
+        results = out.decode().split(SPLITTER)
+
+        response = CmdResponse(cmd=cmd_request.cmd, name=cmd_request.name, results=results)
+        responses.append(response)
+    return responses
+
 
 def print_results(cmddict):
     """
@@ -96,8 +126,20 @@ def print_results(cmddict):
                 print("    " + result.strip())
     print()
 
+def report(cmd_responses:list[CmdResponse]):
 
-def enum_system_info():
+    for cmd_response in cmd_responses:
+        msg = cmd_response.name
+        results = cmd_response.results
+        print("[+] " + msg)
+
+        for result in results:
+            if result.strip() != "":
+                print("    " + result.strip())
+    print()
+
+
+def enum_system_info_new():
     """
     Basic System Info (get_system_info)
     Enumerate Basic System Information by executing simple commands than saving the results
@@ -107,6 +149,29 @@ def enum_system_info():
 
     print("[*] GETTING BASIC SYSTEM INFO...\n")
 
+    cmds = [
+        CmdRequest(cmd="cat /etc/issue", name="Operating System"),
+        CmdRequest(cmd="cat /proc/version", name="Kernel"),
+        CmdRequest(cmd="hostname", name="Hostname")
+    ]
+
+
+    step = Step(desc="[*] GETTING BASIC SYSTEM INFO...\n",cmds=cmds)
+    command_responses = execute(step)
+    report(command_responses)
+
+    return command_responses
+
+def enum_system_info()->None:
+    """
+    Basic System Info (get_system_info)
+    Enumerate Basic System Information by executing simple commands than saving the results
+
+    :return: Dictionary of system information results
+    """
+
+    # print("[*] GETTING BASIC SYSTEM INFO...\n")
+
     sysinfo = {
         "OS": {"cmd": "cat /etc/issue", "msg": "Operating System", "results": []},
         "KERNEL": {"cmd": "cat /proc/version", "msg": "Kernel", "results": []},
@@ -114,7 +179,7 @@ def enum_system_info():
     }
 
     sysinfo = execute_cmd(sysinfo)
-    print_results(sysinfo)
+    # print_results(sysinfo)
 
     return sysinfo
 
@@ -796,6 +861,7 @@ def run_check():
 
     # Enumerate Basic System Information
     sysinfo = enum_system_info()
+    sysinfo_new = enum_system_info_new()
 
     # Enumerate Basic Network Information
     enum_network_info()
