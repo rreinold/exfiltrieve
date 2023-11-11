@@ -828,8 +828,6 @@ def run_check():
     """)
     print(bigline)
 
-    # Enumerate Basic User Information
-    userinfo = enum_user_info()
 
     # Enumerate Basic System Information
     sysinfo = enum_system_info()
@@ -837,6 +835,11 @@ def run_check():
     # Enumerate Basic Network Information
     enum_network_info()
 
+# --- migrated
+
+    # Enumerate Basic User Information
+    userinfo = enum_user_info()
+    
     # Enumerate User History Files
     enum_user_history_files()
 
