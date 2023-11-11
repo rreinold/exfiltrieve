@@ -129,7 +129,7 @@ def report(results:dict[str,CmdResponse]):
     print()
 
 
-def enum_system_info_new():
+def enum_system_info():
     """
     Basic System Info (get_system_info)
     Enumerate Basic System Information by executing simple commands than saving the results
@@ -151,28 +151,6 @@ def enum_system_info_new():
     report(step.results)
 
     return step
-
-def enum_system_info()->None:
-    """
-    Basic System Info (get_system_info)
-    Enumerate Basic System Information by executing simple commands than saving the results
-
-    :return: Dictionary of system information results
-    """
-
-    # print("[*] GETTING BASIC SYSTEM INFO...\n")
-
-    sysinfo = {
-        "OS": {"cmd": "cat /etc/issue", "msg": "Operating System", "results": []},
-        "KERNEL": {"cmd": "cat /proc/version", "msg": "Kernel", "results": []},
-        "HOSTNAME": {"cmd": "hostname", "msg": "Hostname", "results": []}
-    }
-
-    sysinfo = execute_cmd(sysinfo)
-    # print_results(sysinfo)
-
-    return sysinfo
-
 
 def enum_network_info():
     """
@@ -525,7 +503,7 @@ def enum_shell_esapes(devtools):
                     print("    " + cmd + "-->\t" + item)
 
 
-def find_likely_exploits(sysinfo, devtools, pkgsandprocs, driveinfo):
+def find_likely_exploits(sysinfo:Step, devtools, pkgsandprocs, driveinfo):
     """
     Enumerate Likely Exploits (find_likely_exploits)
     Enumerate possible exploits based on system information and installed packages
@@ -731,12 +709,12 @@ def find_likely_exploits(sysinfo, devtools, pkgsandprocs, driveinfo):
     }
 
     # variable declaration
-    os = sysinfo["OS"]["results"][0]
-    kernel = sysinfo["KERNEL"]["results"][0]
+    os = sysinfo.results["OS"].result[0]
+    kernel = sysinfo.results["KERNEL"].result[0]
     version = kernel.split(" ")[2].split("-")[0] if kernel else ""
     langs = devtools["TOOLS"]["results"]
     procs = pkgsandprocs["PROCS"]["results"]
-    kernel = str(sysinfo["KERNEL"]["results"][0])
+    kernel = str(sysinfo.results["KERNEL"].result[0])
     mount = driveinfo["MOUNT"]["results"] if CHECK_MOUNTS else {}
     # pkgs = pkgsandprocs["PKGS"]["results"] # TODO currently not using packages for sploit appicability but may in future
 
@@ -851,8 +829,7 @@ def run_check():
     userinfo = enum_user_info()
 
     # Enumerate Basic System Information
-    sysinfo = enum_system_info()
-    sysinfo_new = enum_system_info_new()
+    sysinfo_new = enum_system_info()
 
     # Enumerate Basic Network Information
     enum_network_info()
@@ -869,7 +846,6 @@ def run_check():
     # Enumerate List of all Cron jobs
     enum_cron_jobs()
 
-    # TODO Redo sysinfo
     # Enumerate Package and Process information
     pkgsandprocs = enum_procs_pkgs(sysinfo_new)
 
@@ -882,7 +858,7 @@ def run_check():
     # Enumerate Possible Shell Escapes
     enum_shell_esapes(devtools)
 
-    find_likely_exploits(sysinfo, devtools, pkgsandprocs, driveinfo)
+    find_likely_exploits(sysinfo_new, devtools, pkgsandprocs, driveinfo)
 
     if PROCESS_SEARCHES:
         # Search for Insecure File/Folder Permissions
