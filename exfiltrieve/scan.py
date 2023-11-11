@@ -33,6 +33,8 @@ curl and run on debian bookworm
 no external deps, unfortunately, unless can be bundled
 """
 from dataclasses import dataclass
+from typing import Optional
+
 # conditional import for older versions of python not compatible with subprocess
 try:
     import subprocess as sub
@@ -50,16 +52,18 @@ PROCESS_SEARCHES=True
 @dataclass
 class CmdRequest:
     cmd: str
-    name:str # change to desc
+    desc:str
+    id: str
 
 @dataclass
 class CmdResponse(CmdRequest):
-    results:list[str]
+    result:list[str]
 
 @dataclass
 class Step:
     desc: str
     cmds: list[CmdRequest]
+    results: Optional[dict[str, CmdResponse]]
 
 
 def execute_cmd(cmddict):
@@ -83,7 +87,7 @@ def execute_cmd(cmddict):
 
     return cmddict
 
-def execute(step:Step)->list[CmdResponse]:
+def execute(step:Step)->dict[str,CmdResponse]:
     """
     Execute Command (execute_cmd)
     loop through dictionary, execute the commands, store the results, return updated dict
@@ -94,17 +98,18 @@ def execute(step:Step)->list[CmdResponse]:
     STDERR = STDOUT =sub.PIPE
     SPLITTER = '\n'
 
-    responses = []
+    results = {}
     for cmd_request in step.cmds:
         cmd:str = cmd_request.cmd
-        process = sub.Popen([cmd], stdout=STDOUT, stderr=STDERR, shell=True)
-        out, _ = process.communicate()
-        # TODO Tolerant to errors?
-        results = out.decode().split(SPLITTER)
-
-        response = CmdResponse(cmd=cmd_request.cmd, name=cmd_request.name, results=results)
-        responses.append(response)
-    return responses
+        def run_command(cmd: str)->list[str]:
+            process = sub.Popen([cmd], stdout=STDOUT, stderr=STDERR, shell=True)
+            out, _ = process.communicate()
+            # TODO Tolerant to errors?
+            return out.decode().split(SPLITTER)
+        result = run_command(cmd)
+        result = CmdResponse(id = cmd_request.id, cmd=cmd_request.cmd, desc=cmd_request.desc, result=result)
+        results[cmd_request.id] = result
+    return results
 
 
 def print_results(cmddict):
@@ -126,11 +131,11 @@ def print_results(cmddict):
                 print("    " + result.strip())
     print()
 
-def report(cmd_responses:list[CmdResponse]):
+def report(results:dict[str,CmdResponse]):
 
-    for cmd_response in cmd_responses:
-        msg = cmd_response.name
-        results = cmd_response.results
+    for cmd_response in results.values():
+        msg = cmd_response.desc
+        results = cmd_response.result
         print("[+] " + msg)
 
         for result in results:
@@ -150,17 +155,17 @@ def enum_system_info_new():
     print("[*] GETTING BASIC SYSTEM INFO...\n")
 
     cmds = [
-        CmdRequest(cmd="cat /etc/issue", name="Operating System"),
-        CmdRequest(cmd="cat /proc/version", name="Kernel"),
-        CmdRequest(cmd="hostname", name="Hostname")
+        CmdRequest(id="OS",cmd="cat /etc/issue", desc="Operating System"),
+        CmdRequest(id="KERNEL", cmd="cat /proc/version", desc="Kernel"),
+        CmdRequest(id="HOSTNAME", cmd="hostname", desc="Hostname")
     ]
 
 
-    step = Step(desc="[*] GETTING BASIC SYSTEM INFO...\n",cmds=cmds)
-    command_responses = execute(step)
-    report(command_responses)
+    step = Step(desc="[*] GETTING BASIC SYSTEM INFO...\n",cmds=cmds, results=None)
+    step.results = execute(step)
+    report(step.results)
 
-    return command_responses
+    return step.results
 
 def enum_system_info()->None:
     """
@@ -878,6 +883,7 @@ def run_check():
     # Enumerate List of all Cron jobs
     enum_cron_jobs()
 
+    # TODO Redo sysinfo
     # Enumerate Package and Process information
     pkgsandprocs = enum_procs_pkgs(sysinfo)
 
