@@ -35,15 +35,7 @@ no external deps, unfortunately, unless can be bundled
 from dataclasses import dataclass
 from typing import Optional
 
-# conditional import for older versions of python not compatible with subprocess
-try:
-    import subprocess as sub
-
-    compatmode = 0  # newer version of python, no need for compatibility mode
-except ImportError:
-    import os  # older version of python, need to use os instead
-
-    compatmode = 1
+import subprocess as sub
 
 # Re enable after integration tests
 CHECK_MOUNTS = False
@@ -88,13 +80,6 @@ def execute_cmd(cmddict):
     return cmddict
 
 def execute(step:Step)->dict[str,CmdResponse]:
-    """
-    Execute Command (execute_cmd)
-    loop through dictionary, execute the commands, store the results, return updated dict
-
-    :param cmddict: Dictionary of commands to execute and results
-    :return: The command Dictionary with the commands results included
-    """
     STDERR = STDOUT =sub.PIPE
     SPLITTER = '\n'
 
@@ -165,7 +150,7 @@ def enum_system_info_new():
     step.results = execute(step)
     report(step.results)
 
-    return step.results
+    return step
 
 def enum_system_info()->None:
     """
@@ -402,7 +387,7 @@ def search_file_passwords():
     print_results(pwdfiles)
 
 
-def enum_procs_pkgs(sysinfo):
+def enum_procs_pkgs(sysinfo:Step):
     """
     Enumerate Processes and Packages (enum_procs_pkgs)
     Enumerate all running processes and installed packages
@@ -413,7 +398,8 @@ def enum_procs_pkgs(sysinfo):
     # Processes and Applications
     print("[*] ENUMERATING PROCESSES AND APPLICATIONS...\n")
 
-    if "debian" in sysinfo["KERNEL"]["results"][0] or "ubuntu" in sysinfo["KERNEL"]["results"][0]:
+    kernel = sysinfo.results["KERNEL"].result[0]
+    if "debian" in kernel or "ubuntu" in kernel:
         getpkgs = "dpkg -l | awk '{$1=$4=\"\"; print $0}'"  # debian
     else:
         getpkgs = "rpm -qa | sort -u"  # RH/other
@@ -885,7 +871,7 @@ def run_check():
 
     # TODO Redo sysinfo
     # Enumerate Package and Process information
-    pkgsandprocs = enum_procs_pkgs(sysinfo)
+    pkgsandprocs = enum_procs_pkgs(sysinfo_new)
 
     # Enumerate Possible Root/superuser packages or processes
     enum_root_pkg_proc(pkgsandprocs, userinfo)
