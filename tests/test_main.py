@@ -2,7 +2,7 @@ from unittest.mock import patch, Mock
 
 import pytest
 
-from exfiltrieve.__main__ import execute_cmd
+from exfiltrieve.scan import execute_cmd
 
 @patch("subprocess.Popen.communicate")
 def test_execute_cmd(comm):
