@@ -17,3 +17,4 @@ def test_execute_cmd(comm):
 @pytest.mark.skip("Not covered in source yet")
 def test_execute_cmd_failure():
     pass
+

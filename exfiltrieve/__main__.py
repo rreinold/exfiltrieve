@@ -43,6 +43,9 @@ except ImportError:
 
     compatmode = 1
 
+# Re enable after integration tests
+CHECK_MOUNTS = False
+
 @dataclass
 class CmdRequest:
     cmd: str
@@ -60,20 +63,16 @@ def execute_cmd(cmddict):
     :param cmddict: Dictionary of commands to execute and results
     :return: The command Dictionary with the commands results included
     """
+    STDERR = STDOUT =sub.PIPE
+    SPLITTER = '\n'
 
-    for item in cmddict:
-        cmd = cmddict[item]["cmd"]
-        if compatmode == 0:  # newer version of python, use preferred subprocess
-            process = sub.Popen([cmd], stdout=sub.PIPE, stderr=sub.PIPE, shell=True)
-            out, error = process.communicate()
-            # TODO Tolerant to errors?
-            results = out.decode().split('\n')
-        else:  # older version of python, use os.popen
-            echo_stdout = os.popen(cmd, 'r')
-            results = echo_stdout.read().split('\n')
+    for name,cmd_details in cmddict.items():
+        process = sub.Popen([cmd_details["cmd"]], stdout=STDOUT, stderr=STDERR, shell=True)
+        out, _ = process.communicate()
+        # TODO Tolerant to errors?
+        results = out.decode().split(SPLITTER)
 
-        # write the results to the command Dictionary for each command run
-        cmddict[item]["results"] = results
+        cmd_details["results"] = results
 
     return cmddict
 
@@ -152,9 +151,12 @@ def enum_filesystem_info():
     print("[*] GETTING FILESYSTEM INFO...\n")
 
     driveinfo = {
-        "MOUNT": {"cmd": "mount", "msg": "Mount results", "results": []},
+
         "FSTAB": {"cmd": "cat /etc/fstab 2>/dev/null", "msg": "fstab entries", "results": []}
     }
+
+    if CHECK_MOUNTS:
+        driveinfo["MOUNT"]: {"cmd": "mount", "msg": "Mount results", "results": []}
 
     driveinfo = execute_cmd(driveinfo)
     print_results(driveinfo)
@@ -207,9 +209,9 @@ def enum_user_info():
     userinfo = execute_cmd(userinfo)
     print_results(userinfo)
 
-    if "root" in userinfo["ID"]["results"][0]:
-        print("[!] ARE YOU SURE YOU'RE NOT ROOT ALREADY?\n")
-        exit()
+    # if "root" in userinfo["ID"]["results"][0]:
+    #     print("[!] ARE YOU SURE YOU'RE NOT ROOT ALREADY?\n")
+    #     exit()
 
     return userinfo
 
@@ -300,7 +302,8 @@ def search_file_perms():
             "msg": "World Writable Files", "results": []},
         "SUID": {"cmd": "find / \( -perm -2000 -o -perm -4000 \) -exec ls -ld {} \; 2>/dev/null",
                  "msg": "SUID/SGID Files and Directories", "results": []},
-        "ROOTHOME": {"cmd": "ls -ahlR /root 2>/dev/null", "msg": "Checking if root's home folder is accessible",
+        # Omit timestamp for deterministic testing
+        "ROOTHOME": {"cmd": "ls -ahlR /root | awk '{print $1, $2, $3, $4, $5, $9}' 2>/dev/null", "msg": "Checking if root's home folder is accessible",
                      "results": []}
     }
 
@@ -678,7 +681,7 @@ def find_likely_exploits(sysinfo, devtools, pkgsandprocs, driveinfo):
     langs = devtools["TOOLS"]["results"]
     procs = pkgsandprocs["PROCS"]["results"]
     kernel = str(sysinfo["KERNEL"]["results"][0])
-    mount = driveinfo["MOUNT"]["results"]
+    mount = driveinfo["MOUNT"]["results"] if CHECK_MOUNTS else {}
     # pkgs = pkgsandprocs["PKGS"]["results"] # TODO currently not using packages for sploit appicability but may in future
 
     # lists to hold ranked, applicable sploits
@@ -833,4 +836,4 @@ def run_check():
     print("Finished")
     print(bigline)
 
-# run_check()
+run_check()
